@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatLlama : UI</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.24/dist/full.min.css" rel="stylesheet" />
+  <link rel="icon" type="image/png" href="asset/logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Optional: Additional styles for the default message */
+    .default-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #6b7280; /* Tailwind gray-500 */
+    }
+    /* Ensure code blocks are scrollable horizontally */
+    pre {
+      overflow-x: auto;
+      white-space: pre-wrap; /* Optional: allow wrapping if desired */
+      word-break: break-all;
+      position: relative; /* For positioning the copy button */
+    }
+    /* Style for the copy button */
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      border: none;
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    pre:hover .copy-btn {
+      opacity: 1;
+    }
+    /* Adjust the chatbox so that long content doesn't break layout */
+    #chatbox {
+      overflow-x: hidden;
+    }
+    /* Styles for the command suggestion box */
+    #commandSuggestions {
+      position: absolute;
+      bottom: 82px; /* adjust to position above the input area */
+      left: 2.5rem;
+      background-color: var(--p);
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,1.1);
+      pointer-events: none; /* allows user to click through */
+      z-index: 50;
+      opacity: 0.8;
+    }
+    think, think > p:not(:has(*)) {
+	color: gray;
+    }
+    think * {
+        color: #a5aebe;
+    }
+  </style>
+</head>
+<body>
+  <div class="flex flex-col h-screen relative">
+    <!-- Navbar with New Chat, Status, and Model Selector -->
+    <div class="navbar bg-base-200 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <a class="btn btn-ghost bg-base-300 text-xl">
+          <img src="asset/logo.png" alt="Chat Llama Logo" class="h-10 w-10" />
+          <b class="text-primary">Chat<span class="text-secondary">Llama</span></b>
+        </a>
+        <button id="newChatBtn" class="btn btn-sm btn-primary">New Chat</button>
+        <button id="statusBtn" class="btn btn-sm btn-secondary">Status</button>
+      </div>
+      <div>
+        <select id="modelSelect" class="select select-bordered select-sm w-full max-w-xs bg-primary text-black font-bold">
+          <option disabled selected>Select a model</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Main Chat Area (fixed max width 100%) -->
+    <div id="chatbox" class="flex-grow overflow-y-auto p-4" style="max-width: 100%;"></div>
+
+    <!-- Input Area -->
+    <div class="p-4 border-t border-base-300 bg-base-200 relative">
+      <form id="inputArea" class="flex gap-2" onsubmit="event.preventDefault(); sendMessage();">
+        <textarea id="userInput" class="textarea textarea-bordered flex-1" rows="1" placeholder="Type your message..."></textarea>
+        <button id="sendBtn" type="button" class="btn btn-primary" onclick="sendMessage()">Send</button>
+      </form>
+      <!-- Command Suggestions (non-modal, non-blocking) -->
+      <div id="commandSuggestions" class="hidden">
+  <div class="flex flex-col items-start gap-1">
+    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+      <img src="asset/web.png" class="h-4 w-4 mr-2" alt="Web Icon">/web
+    </a>
+    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+      <img src="asset/file.png" class="h-4 w-4 mr-2" alt="File Icon">/file
+    </a>
+    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+      <img src="asset/code.png" class="h-4 w-4 mr-2" alt="Code Icon">/code
+    </a>
+    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+      <img src="asset/think.png" class="h-4 w-4 mr-2" alt="Deep Think Icon">/deep think
+    </a>
+    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+      <img src="asset/image.png" class="h-4 w-4 mr-2" alt="Image Icon">/image
+    </a>
+  </div>
+</div>
+
+    </div>
+
+    <!-- Modal for Status (hidden by default) -->
+    <input type="checkbox" id="psModalToggle" class="modal-toggle" />
+    <div class="modal" style="backdrop-filter: blur(1px);">
+      <div class="modal-box relative">
+        <label for="psModalToggle" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label>
+        <h3 class="text-lg font-bold mb-4">System Status</h3>
+        <div id="psModalContent">
+          <!-- RAM usage and expiry data will be inserted here -->
+          <p>Loading status...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Default Message: Visible until the first message is sent -->
+    <div id="defaultMessage" class="default-message">
+      <p class="mb-2">
+        <center>
+          <img src="asset/logo.png" alt="Chat Llama Logo" class="h-40 w-40" style="filter: grayscale(0.8) brightness(1.3) contrast(0.8) blur(0.2px);" />
+        </center>
+      </p>
+      <p class="mb-2 font-semibold text-xl">Welcome to ChatLlama UI 1.0!</p>
+      <p class="mb-2">Type your message to start chatting.</p>
+      <p class="text-sm">Shortcuts: <br>
+         - <strong>Ctrl+D</strong>: New Chat<br>
+         - <strong>Ctrl+S</strong>: Stop streaming<br>
+         - <strong>Enter</strong>: Send message
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Set marked options to use highlight.js for code blocks.
+    marked.setOptions({
+      highlight: function(code, lang) {
+        const validLang = hljs.getLanguage(lang) ? lang : 'plaintext';
+        return hljs.highlight(code, { language: validLang }).value;
+      }
+    });
+
+    // Cache frequently accessed DOM elements.
+    const modelSelect = document.getElementById("modelSelect");
+    const chatbox = document.getElementById("chatbox");
+    const userInput = document.getElementById("userInput");
+    const newChatBtn = document.getElementById("newChatBtn");
+    const sendBtn = document.getElementById("sendBtn");
+    const statusBtn = document.getElementById("statusBtn");
+    const psModalContent = document.getElementById("psModalContent");
+    const psModalToggle = document.getElementById("psModalToggle");
+    const commandSuggestions = document.getElementById("commandSuggestions");
+    let defaultMessage = document.getElementById("defaultMessage");
+
+    // Global chat state and streaming control.
+    let currentChatHistory = [];
+    let controller = new AbortController();
+    let isStreaming = false;
+    let previousModel = ""; // Store the previously selected model.
+
+    // Utility: Escape HTML to show as text.
+    function escapeHtml(unsafe) {
+      return unsafe.replace(/&/g, "&amp;")
+                   .replace(/</g, "&lt;")
+                   .replace(/>/g, "&gt;");
+    }
+
+    // Update send button based on whether a response is streaming.
+    function updateSendButton() {
+      if (isStreaming) {
+        sendBtn.textContent = "Stop";
+        sendBtn.onclick = stopCurrentStreaming;
+        sendBtn.className = 'btn btn-secondary';
+      } else {
+        sendBtn.textContent = "Send";
+        sendBtn.onclick = sendMessage;
+        sendBtn.className = 'btn btn-primary';
+      }
+    }
+
+    // Fetch available models.
+    async function fetchModels() {
+      try {
+        const response = await fetch(location.href +"/api/tags");
+        const data = await response.json();
+        modelSelect.innerHTML = data.models.sort((a,b)=>a.size - b.size)
+          .map(model => `<option value="${model.name}">► ${model.name.split(":")[0]} ∙ [ ${model.name.split(":")[1]} ]</option>`)
+          .join('');
+        // Initialize previousModel and select the first model.
+        previousModel = data.models[0]?.name || "";
+        modelSelect.value = previousModel;
+      } catch (error) {
+        console.error("Error fetching models:", error);
+      }
+    }
+
+    // Abort any ongoing streaming response.
+    function stopResponse() {
+      controller.abort();
+      controller = new AbortController();
+    }
+
+    // Stop streaming response when the Stop button is pressed.
+    function stopCurrentStreaming() {
+      stopResponse();
+      isStreaming = false;
+      updateSendButton();
+    }
+
+    // Unload a model from memory.
+    async function unloadModel(modelName) {
+      try {
+        await fetch(location.href +"/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: modelName, messages: [], keep_alive: 0 })
+        });
+        console.log("Unloaded model:", modelName);
+      } catch (error) {
+        console.error("Error unloading model:", error);
+      }
+    }
+
+    // Function to add copy buttons to all code blocks.
+    function addCopyButtons() {
+      document.querySelectorAll("pre").forEach(pre => {
+        // Prevent adding duplicate buttons.
+        if (pre.querySelector(".copy-btn")) return;
+        const button = document.createElement("button");
+        button.className = "copy-btn";
+        button.textContent = "Copy";
+        button.addEventListener("click", () => {
+          const codeBlock = pre.querySelector("code");
+          if (codeBlock) {
+            navigator.clipboard.writeText(codeBlock.innerText).then(() => {
+              button.textContent = "Copied!";
+              setTimeout(() => {
+                button.textContent = "Copy";
+              }, 2000);
+            }).catch(err => {
+              console.error("Failed to copy: ", err);
+            });
+          }
+        });
+        pre.appendChild(button);
+      });
+    }
+
+    // Process streaming API responses.
+    async function processResponse(response, contentElement) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let partialText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true }).trim();
+        const jsonObjects = chunk.split("\n")
+          .filter(line => line.trim())
+          .map(line => {
+            try {
+              return JSON.parse(line);
+            } catch (err) {
+              console.error("JSON parsing error:", err, "Chunk:", line);
+              return null;
+            }
+          }).filter(obj => obj !== null);
+
+        for (const obj of jsonObjects) {
+          const newResponseText = obj.response || (obj.message && obj.message.content);
+          if (newResponseText) {
+            partialText += newResponseText;
+            // Update container with parsed Markdown.
+            contentElement.innerHTML = marked.parse(partialText);
+            // Apply syntax highlighting to all code blocks.
+            contentElement.querySelectorAll("pre code").forEach((block) => {
+              hljs.highlightElement(block);
+            });
+            // Add copy buttons to code blocks.
+            addCopyButtons();
+            chatbox.scrollTop = chatbox.scrollHeight;
+          }
+        }
+      }
+      return partialText;
+    }
+
+    // Call the /api/generate endpoint for the first message.
+    async function generateResponse(message, selectedModel) {
+      return fetch(location.href +"/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: selectedModel, prompt: message }),
+        signal: controller.signal
+      });
+    }
+
+    // Call the /api/chat endpoint for subsequent messages.
+    async function chatResponse(selectedModel, history) {
+      return fetch(location.href +"/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: selectedModel, messages: history }),
+        signal: controller.signal
+      });
+    }
+
+    // Append a user message to the chatbox with HTML escaped.
+    function appendUserMessage(message) {
+      // Remove the default message if it's visible.
+      if (defaultMessage) {
+        defaultMessage.remove();
+      }
+      const userMessageEl = document.createElement("div");
+      userMessageEl.className = "chat-message flex flex-row mb-4";
+      const avatar = `<div class="avatar">
+                        <div class="w-8 h-8 mt-2 rounded-full flex items-center justify-center">
+                          <img src="asset/user.png">
+                        </div>
+                      </div>`;
+      const messageContainer = document.createElement("div");
+      messageContainer.className = "bg-base-200 text-base-content rounded-lg p-3 flex-1 ml-2";
+      messageContainer.textContent = message;
+      userMessageEl.innerHTML = avatar;
+      userMessageEl.appendChild(messageContainer);
+      chatbox.appendChild(userMessageEl);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    // Create and append the assistant's reply container with a skeleton loader.
+    function createAssistantMessageContainer() {
+      const aiMessageEl = document.createElement("div");
+      aiMessageEl.className = "chat-message flex flex-row-reverse mb-4";
+      aiMessageEl.innerHTML = `
+        <div class="avatar">
+          <div class="w-8 h-8 mt-2 rounded-full flex items-center justify-center bg-base-300 text-base-content">
+            <span class="material-icons text-lg"><img src="asset/ollama.png"></span>
+          </div>
+        </div>
+        <div class="bg-base-300 text-base-content rounded-lg p-3 flex-1 mr-2 message-content">
+          <!-- Skeleton loader -->
+          <div class="animate-pulse space-y-2">
+            <div class="h-4 bg-gray-600 rounded w-3/4"></div>
+            <div class="h-4 bg-gray-800 rounded w-5/6"></div>
+          </div>
+        </div>
+      `;
+      chatbox.appendChild(aiMessageEl);
+      chatbox.scrollTop = chatbox.scrollHeight;
+      return aiMessageEl.querySelector(".message-content");
+    }
+
+    // Main function to send a message.
+    async function sendMessage() {
+      const message = userInput.value.trim();
+      const selectedModel = modelSelect.value;
+      if (!message) return;
+      userInput.value = "";
+      
+      // Hide command suggestions (if visible) once a message is sent.
+      commandSuggestions.classList.add("hidden");
+
+      // Append user message and immediately create the assistant message container with skeleton loader.
+      appendUserMessage(message);
+      const messageContentDiv = createAssistantMessageContainer();
+      currentChatHistory.push({ role: "user", content: message });
+
+      isStreaming = true;
+      updateSendButton();
+
+      let response;
+      try {
+        response = currentChatHistory.length === 1
+          ? await generateResponse(message, selectedModel)
+          : await chatResponse(selectedModel, currentChatHistory);
+        if (!response.ok) throw new Error("Server error: " + response.status);
+
+        const fullResponseText = await processResponse(response, messageContentDiv);
+        currentChatHistory.push({ role: "assistant", content: fullResponseText });
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("Error fetching response:", error);
+          messageContentDiv.innerHTML = `<p class="text-error">Error fetching response: ${error.message}</p>`;
+        }
+      } finally {
+        isStreaming = false;
+        updateSendButton();
+      }
+    }
+
+    // Event: New Chat clears chat history and UI, and shows the default message.
+    newChatBtn.addEventListener("click", () => {
+      currentChatHistory = [];
+      chatbox.innerHTML = "";
+      // Reinstate the default welcome message.
+      const defaultHTML = `
+        <div id="defaultMessage" class="default-message">
+          <p class="mb-2">
+            <center>
+              <img src="asset/logo.png" alt="Chat Llama Logo" class="h-40 w-40" style="filter: grayscale(0.8) brightness(1.3) contrast(0.8) blur(0.2px);" />
+            </center>
+          </p>
+          <p class="mb-2 font-semibold text-xl">Welcome to ChatLlama UI 1.0!</p>
+          <p class="mb-2">New Chat Session Started! Type your message to start chatting.</p>
+          <p class="text-sm">Shortcuts: <br>
+             - <strong>Ctrl+D</strong>: New Chat<br>
+             - <strong>Ctrl+S</strong>: Stop streaming<br>
+             - <strong>Enter</strong>: Send message
+          </p>
+        </div>
+      `;
+      if(defaultMessage) defaultMessage.remove();
+      chatbox.insertAdjacentHTML('afterbegin', defaultHTML);
+      defaultMessage = document.getElementById("defaultMessage");
+    });
+
+    // Key event: Enter (without Shift) sends message.
+    userInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Listen for "/" key in the text area to display command suggestions.
+    userInput.addEventListener("keyup", (event) => {
+      // If the only character is "/" show suggestions, otherwise hide them.
+      if (userInput.value.trim() === "/") {
+        commandSuggestions.classList.remove("hidden");
+      } else {
+        commandSuggestions.classList.add("hidden");
+      }
+    });
+
+    // Global key events.
+    document.addEventListener("keydown", (event) => {
+      // Note: Ctrl+Shift+N is reserved by Edge for InPrivate windows.
+      // Consider using an alternative combination if needed.
+      if (event.ctrlKey && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        newChatBtn.click();
+      }
+      // Ctrl+S stops streaming.
+      if (event.ctrlKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (isStreaming) {
+          stopCurrentStreaming();
+        }
+      }
+      if (!(event.ctrlKey && event.key.toLowerCase() === "c") && document.activeElement !== userInput && /^[a-zA-Z0-9]$/i.test(event.key)) {
+        userInput.focus();
+      }
+    });
+
+    // On model change, unload the previous model if an assistant response has been received.
+    modelSelect.addEventListener("change", async () => {
+      const newModel = modelSelect.value;
+      const hasAssistantReply = currentChatHistory.some(msg => msg.role === "assistant");
+      // Unload previous model if an assistant response exists and previousModel differs from new selection.
+      if (hasAssistantReply && previousModel && previousModel !== newModel) {
+        await unloadModel(previousModel);
+      }
+      previousModel = newModel;
+    });
+
+    function timeLeft(targetDateStr) {
+      const targetDate = new Date(targetDateStr);
+      const now = new Date();
+      const timeDiff = targetDate - now; // Difference in milliseconds
+
+      if (timeDiff <= 0) {
+        return "Already Expired!";
+      }
+
+      const seconds = Math.floor((timeDiff / 1000) % 60);
+      const minutes = Math.floor((timeDiff / (1000 * 60)) % 60);
+
+      return `${minutes} minutes, ${seconds} seconds left`;
+    }
+
+    // Show status modal and fetch system details.
+    statusBtn.addEventListener("click", async () => {
+      // Open the modal.
+      psModalToggle.checked = true;
+      psModalContent.innerHTML = "<p>Loading status...</p>";
+      try {
+        const response = await fetch(location.href +"/api/ps");
+        const data = await response.json();
+        // Build HTML to display the ps data.
+        if (data.models && data.models.length > 0) {
+          let html = '<table class="table w-full text-primary"><thead><tr><th>Model</th><th>VRAM Usage</th><th>Expires In</th></tr></thead><tbody>';
+          data.models.forEach(model => {
+            html += `<tr>
+                      <td>${model.name}</td>
+                      <td>${model.size_vram}</td>
+                      <td>${timeLeft(model.expires_at)}</td>
+                    </tr>`;
+          });
+          html += '</tbody>';
+
+          html += '<thead><tr><th>Q_level</th><th>Param Size</th><th>Family</th></tr></thead><tbody class="text-secondary">';
+          data.models.forEach(model => {
+            html += `<tr>
+                      <td>${model.details.quantization_level}</td>
+                      <td>${model.details.parameter_size}</td>
+                      <td>${model.details.family}</td>
+                    </tr>`;
+          });
+          html += '</tbody></table>';
+
+          psModalContent.innerHTML = html;
+        } else {
+          psModalContent.innerHTML = "<p>No system data available.</p>";
+        }
+      } catch (error) {
+        psModalContent.innerHTML = `<p>Error fetching status: ${error.message}</p>`;
+      }
+    });
+
+    // Initialize models on page load.
+    fetchModels();
+  </script>
+</body>
+</html>
