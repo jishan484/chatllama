@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -18,15 +19,20 @@
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
-      color: #6b7280; /* Tailwind gray-500 */
+      color: #6b7280;
+      /* Tailwind gray-500 */
     }
+
     /* Ensure code blocks are scrollable horizontally */
     pre {
       overflow-x: auto;
-      white-space: pre-wrap; /* Optional: allow wrapping if desired */
+      white-space: pre-wrap;
+      /* Optional: allow wrapping if desired */
       word-break: break-all;
-      position: relative; /* For positioning the copy button */
+      position: relative;
+      /* For positioning the copy button */
     }
+
     /* Style for the copy button */
     .copy-btn {
       position: absolute;
@@ -42,34 +48,38 @@
       opacity: 0;
       transition: opacity 0.3s ease;
     }
+
     pre:hover .copy-btn {
       opacity: 1;
     }
+
     /* Adjust the chatbox so that long content doesn't break layout */
     #chatbox {
       overflow-x: hidden;
     }
+
     /* Styles for the command suggestion box */
     #commandSuggestions {
       position: absolute;
-      bottom: 82px; /* adjust to position above the input area */
+      bottom: 82px;
+      /* adjust to position above the input area */
       left: 2.5rem;
       background-color: var(--p);
       padding: 0.5rem;
       border-radius: 0.5rem;
-      box-shadow: 0 4px 6px rgba(0,0,0,1.1);
-      pointer-events: none; /* allows user to click through */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 1.1);
+      pointer-events: none;
+      /* allows user to click through */
       z-index: 50;
       opacity: 0.8;
     }
-    think, think > p:not(:has(*)) {
-	color: gray;
-    }
-    think * {
-        color: #a5aebe;
+    
+    think{
+      color: gray;
     }
   </style>
 </head>
+
 <body>
   <div class="flex flex-col h-screen relative">
     <!-- Navbar with New Chat, Status, and Model Selector -->
@@ -83,7 +93,8 @@
         <button id="statusBtn" class="btn btn-sm btn-secondary">Status</button>
       </div>
       <div>
-        <select id="modelSelect" class="select select-bordered select-sm w-full max-w-xs bg-primary text-black font-bold">
+        <select id="modelSelect"
+          class="select select-bordered select-sm w-full max-w-xs bg-primary text-black font-bold">
           <option disabled selected>Select a model</option>
         </select>
       </div>
@@ -95,29 +106,30 @@
     <!-- Input Area -->
     <div class="p-4 border-t border-base-300 bg-base-200 relative">
       <form id="inputArea" class="flex gap-2" onsubmit="event.preventDefault(); sendMessage();">
-        <textarea id="userInput" class="textarea textarea-bordered flex-1" rows="1" placeholder="Type your message..."></textarea>
+        <textarea id="userInput" class="textarea textarea-bordered flex-1" rows="1"
+          placeholder="Type your message..."></textarea>
         <button id="sendBtn" type="button" class="btn btn-primary" onclick="sendMessage()">Send</button>
       </form>
       <!-- Command Suggestions (non-modal, non-blocking) -->
       <div id="commandSuggestions" class="hidden">
-  <div class="flex flex-col items-start gap-1">
-    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-      <img src="asset/web.png" class="h-4 w-4 mr-2" alt="Web Icon">/web
-    </a>
-    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-      <img src="asset/file.png" class="h-4 w-4 mr-2" alt="File Icon">/file
-    </a>
-    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-      <img src="asset/code.png" class="h-4 w-4 mr-2" alt="Code Icon">/code
-    </a>
-    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-      <img src="asset/think.png" class="h-4 w-4 mr-2" alt="Deep Think Icon">/deep think
-    </a>
-    <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-      <img src="asset/image.png" class="h-4 w-4 mr-2" alt="Image Icon">/image
-    </a>
-  </div>
-</div>
+        <div class="flex flex-col items-start gap-1">
+          <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+            <img src="asset/web.png" class="h-4 w-4 mr-2" alt="Web Icon">/web
+          </a>
+          <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+            <img src="asset/file.png" class="h-4 w-4 mr-2" alt="File Icon">/file
+          </a>
+          <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+            <img src="asset/code.png" class="h-4 w-4 mr-2" alt="Code Icon">/code
+          </a>
+          <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+            <img src="asset/think.png" class="h-4 w-4 mr-2" alt="Deep Think Icon">/deep think
+          </a>
+          <a class="btn btn-sm text-sm w-full flex items-center justify-start">
+            <img src="asset/image.png" class="h-4 w-4 mr-2" alt="Image Icon">/image
+          </a>
+        </div>
+      </div>
 
     </div>
 
@@ -138,15 +150,16 @@
     <div id="defaultMessage" class="default-message">
       <p class="mb-2">
         <center>
-          <img src="asset/logo.png" alt="Chat Llama Logo" class="h-40 w-40" style="filter: grayscale(0.8) brightness(1.3) contrast(0.8) blur(0.2px);" />
+          <img src="asset/logo.png" alt="Chat Llama Logo" class="h-40 w-40"
+            style="filter: grayscale(0.8) brightness(1.3) contrast(0.8) blur(0.2px);" />
         </center>
       </p>
       <p class="mb-2 font-semibold text-xl">Welcome to ChatLlama UI 1.0!</p>
       <p class="mb-2">Type your message to start chatting.</p>
       <p class="text-sm">Shortcuts: <br>
-         - <strong>Ctrl+D</strong>: New Chat<br>
-         - <strong>Ctrl+S</strong>: Stop streaming<br>
-         - <strong>Enter</strong>: Send message
+        - <strong>Ctrl+D</strong>: New Chat<br>
+        - <strong>Ctrl+S</strong>: Stop streaming<br>
+        - <strong>Enter</strong>: Send message
       </p>
     </div>
   </div>
@@ -154,10 +167,32 @@
   <script>
     // Set marked options to use highlight.js for code blocks.
     marked.setOptions({
-      highlight: function(code, lang) {
+      highlight: function (code, lang) {
         const validLang = hljs.getLanguage(lang) ? lang : 'plaintext';
         return hljs.highlight(code, { language: validLang }).value;
       }
+    });
+
+    marked.use({
+      extensions: [{
+        name: 'thinkBlock',
+        level: 'block',
+        start(src) { return src.match(/<think>/)?.index; },
+        tokenizer(src) {
+          const match = /^<think>([\s\S]*?)<\/think>/m.exec(src);
+          if (match) {
+            return {
+              type: 'thinkBlock',
+              raw: match[0],
+              text: match[1].trim(),
+              tokens: this.lexer.blockTokens(match[1].trim())
+            };
+          }
+        },
+        renderer(token) {
+          return `<think>${marked.parser(token.tokens)}</think>`;
+        }
+      }]
     });
 
     // Cache frequently accessed DOM elements.
@@ -181,8 +216,8 @@
     // Utility: Escape HTML to show as text.
     function escapeHtml(unsafe) {
       return unsafe.replace(/&/g, "&amp;")
-                   .replace(/</g, "&lt;")
-                   .replace(/>/g, "&gt;");
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
     }
 
     // Update send button based on whether a response is streaming.
@@ -201,9 +236,9 @@
     // Fetch available models.
     async function fetchModels() {
       try {
-        const response = await fetch(location.href +"/api/tags");
+        const response = await fetch(location.href + "/api/tags");
         const data = await response.json();
-        modelSelect.innerHTML = data.models.sort((a,b)=>a.size - b.size)
+        modelSelect.innerHTML = data.models.sort((a, b) => a.size - b.size)
           .map(model => `<option value="${model.name}">► ${model.name.split(":")[0]} ∙ [ ${model.name.split(":")[1]} ]</option>`)
           .join('');
         // Initialize previousModel and select the first model.
@@ -230,7 +265,7 @@
     // Unload a model from memory.
     async function unloadModel(modelName) {
       try {
-        await fetch(location.href +"/api/chat", {
+        await fetch(location.href + "/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ model: modelName, messages: [], keep_alive: 0 })
@@ -308,7 +343,7 @@
 
     // Call the /api/generate endpoint for the first message.
     async function generateResponse(message, selectedModel) {
-      return fetch(location.href +"/api/generate", {
+      return fetch(location.href + "/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: selectedModel, prompt: message }),
@@ -318,7 +353,7 @@
 
     // Call the /api/chat endpoint for subsequent messages.
     async function chatResponse(selectedModel, history) {
-      return fetch(location.href +"/api/chat", {
+      return fetch(location.href + "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: selectedModel, messages: history }),
@@ -377,7 +412,7 @@
       const selectedModel = modelSelect.value;
       if (!message) return;
       userInput.value = "";
-      
+
       // Hide command suggestions (if visible) once a message is sent.
       commandSuggestions.classList.add("hidden");
 
@@ -430,7 +465,7 @@
           </p>
         </div>
       `;
-      if(defaultMessage) defaultMessage.remove();
+      if (defaultMessage) defaultMessage.remove();
       chatbox.insertAdjacentHTML('afterbegin', defaultHTML);
       defaultMessage = document.getElementById("defaultMessage");
     });
@@ -505,7 +540,7 @@
       psModalToggle.checked = true;
       psModalContent.innerHTML = "<p>Loading status...</p>";
       try {
-        const response = await fetch(location.href +"/api/ps");
+        const response = await fetch(location.href + "/api/ps");
         const data = await response.json();
         // Build HTML to display the ps data.
         if (data.models && data.models.length > 0) {
@@ -542,4 +577,5 @@
     fetchModels();
   </script>
 </body>
+
 </html>
