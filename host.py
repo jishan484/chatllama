@@ -55,7 +55,7 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         query = urlparse(self.path).query
         return parse_qs(query)
 
-os.chdir(".")
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 with socketserver.TCPServer(("", PORT), ProxyHandler) as httpd:
     print(f"Serving proxy and static content on port {PORT}")
