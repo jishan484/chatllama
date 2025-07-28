@@ -222,6 +222,24 @@
         .replace(/>/g, "&gt;");
     }
 
+    function copyToClipboard(el) {
+  	const text = el.innerText || el.textContent;
+  	if (navigator.clipboard && window.isSecureContext) {
+    	navigator.clipboard.writeText(text).catch(() => {});
+  	} else {
+    	    const ta = document.createElement("textarea");
+    	    ta.value = text;
+    	    ta.style.position = "fixed";
+    	    ta.style.top = "-9999px";
+    	    document.body.appendChild(ta);
+    	    ta.focus();
+    	    ta.select();
+    	try { document.execCommand("copy"); } catch (e) {}
+    	document.body.removeChild(ta);
+  	}
+    }
+
+
     // Update send button based on whether a response is streaming.
     function updateSendButton() {
       if (isStreaming) {
@@ -287,17 +305,11 @@
         button.className = "copy-btn";
         button.textContent = "Copy";
         button.addEventListener("click", () => {
-          const codeBlock = pre.querySelector("code");
-          if (codeBlock) {
-            navigator.clipboard.writeText(codeBlock.innerText).then(() => {
-              button.textContent = "Copied!";
+          copyToClipboard(button.parentElement.getElementsByTagName('code')[0]);
+          button.textContent = "Copied!";
               setTimeout(() => {
                 button.textContent = "Copy";
               }, 2000);
-            }).catch(err => {
-              console.error("Failed to copy: ", err);
-            });
-          }
         });
         pre.appendChild(button);
       });
