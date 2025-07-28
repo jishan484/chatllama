@@ -1,4 +1,7 @@
-# ChatLLaMA
+# ChatLLaMA <img width="31" height="33" alt="image" src="https://github.com/user-attachments/assets/94da76b2-eb2d-41c4-a9fe-2d8f23070482" />
+
+> <img width="574" height="268" alt="image" src="https://github.com/user-attachments/assets/60fb7751-f3c4-4661-87cb-e056eaa02349" />
+
 *UI and local proxy for Ollama — chat with LLaMA and other models from any device on your network.*
 
 ChatLLaMA is a lightweight web interface and proxy server that allows you to chat with Ollama models running on your host machine — from mobile, tablet, or other computers. It exposes a simple UI and REST endpoint so you don’t have to stay on the same PC.
