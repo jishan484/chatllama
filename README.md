@@ -1,10 +1,10 @@
-# ChatLLaMA <img width="31" height="33" alt="image" src="https://github.com/user-attachments/assets/94da76b2-eb2d-41c4-a9fe-2d8f23070482" />
+# llamaUI <img width="31" height="33" alt="image" src="https://github.com/user-attachments/assets/94da76b2-eb2d-41c4-a9fe-2d8f23070482" />
 
 > <img width="574" height="268" alt="image" src="https://github.com/user-attachments/assets/60fb7751-f3c4-4661-87cb-e056eaa02349" />
 
 *UI and local proxy for Ollama — chat with LLaMA and other models from any device on your network.*
 
-ChatLLaMA is a lightweight web interface and proxy server that allows you to chat with Ollama models running on your host machine — from mobile, tablet, or other computers. It exposes a simple UI and REST endpoint so you don’t have to stay on the same PC.
+llamaUI is a lightweight web interface and proxy server that allows you to chat with Ollama models running on your host machine — from mobile, tablet, or other computers. It exposes a simple UI and REST endpoint so you don’t have to stay on the same PC.
 
 ## ✨ Features
 - 🔄 Model Selector – switch between installed models (e.g. llama3, mistral, gemma, etc.)
@@ -51,7 +51,7 @@ To restrict access:
 
 # 🧠 Why?
 Ollama is powerful — but it's limited to your local machine 😭.
-ChatLLaMA lets you access local models like llama3 from any device on your network 🤩, with a lightweight and user-friendly web interface.
+llamaUI lets you access local models like llama3 from any device on your network 🤩, with a lightweight and user-friendly web interface.
 No need to install heavy apps or frameworks — just run this simple web app and start chatting. 😎
 
 ## 📄 License
