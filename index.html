@@ -77,6 +77,35 @@
     think {
       color: gray;
     }
+
+    .textarea-wrapper {
+      position: relative;
+      display: flex;
+      width: 100%;
+    }
+
+    .upload-btn {
+      position: absolute;
+      right: 0.7rem;
+      bottom: 0.4rem;
+      background: transparent;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: #6b7280;
+      border: 1px solid #6b7280;
+      padding: 0 8px 2px;
+      border-radius: 50%;
+    }
+    
+    #userInput::-webkit-scrollbar {
+      display: none;
+    }
+    
+    #userInput {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 
@@ -87,10 +116,10 @@
       <div class="flex items-center gap-2">
         <a class="btn btn-ghost bg-base-300 text-xl">
           <img src="asset/logo.png" alt="llamaUI Logo" class="h-10 w-10" />
-          <b class="text-primary">Llama<span class="text-secondary">UI</span></b>
+          <b class="text-primary hidden sm:inline">Llama<span class="text-secondary">UI</span></b>
         </a>
         <button id="newChatBtn" class="btn btn-sm btn-primary">New Chat</button>
-        <button id="statusBtn" class="btn btn-sm btn-secondary">Status</button>
+        <button id="statusBtn" class="btn btn-sm btn-secondary hidden sm:inline">Status</button>
       </div>
       <div>
         <select id="modelSelect"
@@ -106,27 +135,25 @@
     <!-- Input Area -->
     <div class="p-4 border-t border-base-300 bg-base-200 relative">
       <form id="inputArea" class="flex gap-2" onsubmit="event.preventDefault(); sendMessage();">
-        <textarea id="userInput" class="textarea textarea-bordered flex-1" rows="1"
-          placeholder="Type your message..."></textarea>
+        <div class="textarea-wrapper">
+          <textarea id="userInput" class="textarea textarea-bordered flex-1 pr-10" rows="1"
+            placeholder="Type your message..."></textarea>
+          <button id="uploadBtn" type="button" class="upload-btn" title="Upload file">+</button>
+          <input id="fileInput" type="file" class="hidden" accept=".jpeg,.jpg,.png,.webp,image/jpeg,image/png,image/webp" />
+        </div>
         <button id="sendBtn" type="button" class="btn btn-primary" onclick="sendMessage()">Send</button>
       </form>
       <!-- Command Suggestions (non-modal, non-blocking) -->
       <div id="commandSuggestions" class="hidden">
         <div class="flex flex-col items-start gap-1">
           <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-            <img src="asset/web.png" class="h-4 w-4 mr-2" alt="Web Icon">/web
+            <img src="asset/web.png" class="h-4 w-4 mr-2" alt="Web Icon">/Web
           </a>
           <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-            <img src="asset/file.png" class="h-4 w-4 mr-2" alt="File Icon">/file
+            <img src="asset/code.png" class="h-4 w-4 mr-2" alt="Code Icon">/Full Code
           </a>
           <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-            <img src="asset/code.png" class="h-4 w-4 mr-2" alt="Code Icon">/code
-          </a>
-          <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-            <img src="asset/think.png" class="h-4 w-4 mr-2" alt="Deep Think Icon">/deep think
-          </a>
-          <a class="btn btn-sm text-sm w-full flex items-center justify-start">
-            <img src="asset/image.png" class="h-4 w-4 mr-2" alt="Image Icon">/image
+            <img src="asset/think.png" class="h-4 w-4 mr-2" alt="Deep Think Icon">/Deep Think
           </a>
         </div>
       </div>
@@ -215,7 +242,7 @@
     let isStreaming = false;
     let previousModel = ""; // Store the previously selected model.
 
-    // Utility: Escape HTML to show as text.
+    // Utility sectuion: <
     function escapeHtml(unsafe) {
       return unsafe.replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -223,22 +250,37 @@
     }
 
     function copyToClipboard(el) {
-  	const text = el.innerText || el.textContent;
-  	if (navigator.clipboard && window.isSecureContext) {
-    	navigator.clipboard.writeText(text).catch(() => {});
-  	} else {
-    	    const ta = document.createElement("textarea");
-    	    ta.value = text;
-    	    ta.style.position = "fixed";
-    	    ta.style.top = "-9999px";
-    	    document.body.appendChild(ta);
-    	    ta.focus();
-    	    ta.select();
-    	try { document.execCommand("copy"); } catch (e) {}
-    	document.body.removeChild(ta);
-  	}
+      const text = el.innerText || el.textContent;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).catch(() => { });
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) { }
+        document.body.removeChild(ta);
+      }
     }
 
+    function timeLeft(targetDateStr) {
+      const targetDate = new Date(targetDateStr);
+      const now = new Date();
+      const timeDiff = targetDate - now; // Difference in milliseconds
+
+      if (timeDiff <= 0) {
+        return "Already Expired!";
+      }
+
+      const seconds = Math.floor((timeDiff / 1000) % 60);
+      const minutes = Math.floor((timeDiff / (1000 * 60)) % 60);
+
+      return `${minutes} minutes, ${seconds} seconds left`;
+    }
+    //End of Utility section:>
 
     // Update send button based on whether a response is streaming.
     function updateSendButton() {
@@ -307,9 +349,9 @@
         button.addEventListener("click", () => {
           copyToClipboard(button.parentElement.getElementsByTagName('code')[0]);
           button.textContent = "Copied!";
-              setTimeout(() => {
-                button.textContent = "Copy";
-              }, 2000);
+          setTimeout(() => {
+            button.textContent = "Copy";
+          }, 2000);
         });
         pre.appendChild(button);
       });
@@ -533,20 +575,20 @@
       previousModel = newModel;
     });
 
-    function timeLeft(targetDateStr) {
-      const targetDate = new Date(targetDateStr);
-      const now = new Date();
-      const timeDiff = targetDate - now; // Difference in milliseconds
-
-      if (timeDiff <= 0) {
-        return "Already Expired!";
+    document.getElementById('uploadBtn').addEventListener('click', () => {
+      if(document.getElementById('uploadBtn').innerText != '×')
+        document.getElementById('fileInput').click();
+      else{
+        document.getElementById('uploadBtn').innerText = '+';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('uploadBtn').style.background = 'transparent';
       }
+    });
 
-      const seconds = Math.floor((timeDiff / 1000) % 60);
-      const minutes = Math.floor((timeDiff / (1000 * 60)) % 60);
-
-      return `${minutes} minutes, ${seconds} seconds left`;
-    }
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      document.getElementById('uploadBtn').innerText = '×';
+      document.getElementById('uploadBtn').style.background = 'rgb(16 185 129 / 17%)';
+    });
 
     // Show status modal and fetch system details.
     statusBtn.addEventListener("click", async () => {
