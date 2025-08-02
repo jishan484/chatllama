@@ -3,6 +3,7 @@ import socketserver
 import requests
 import os
 from urllib.parse import urlparse, parse_qs
+import json
 
 PORT = 8000
 TARGET_URL = "http://0.0.0.0:11434"  # Change this to the API server's address
@@ -11,6 +12,12 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith('/api/'):
             self.proxy_request()
+        elif self.path.startswith('/internal/cpu'):
+            data = json.dumps({"cpu_count": os.cpu_count()}).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(data)
         else:
             super().do_GET()
 
@@ -57,6 +64,6 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-with socketserver.TCPServer(("", PORT), ProxyHandler) as httpd:
+with socketserver.ThreadingTCPServer(("", PORT), ProxyHandler) as httpd:
     print(f"Serving proxy and static content on port {PORT}")
     httpd.serve_forever()

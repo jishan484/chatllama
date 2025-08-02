@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1" />
+  <script>if (window.innerWidth < 390) { let s = window.innerWidth / 390; document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=390, initial-scale=1.0, user-scalable=no, minimum-scale=' + s + ', maximum-scale=' + s); }</script>
   <title>llamaUI : UI</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
@@ -33,6 +34,10 @@
       /* For positioning the copy button */
     }
 
+    #modelSelect {
+      max-width: 160px;
+    }
+
     /* Style for the copy button */
     .copy-btn {
       position: absolute;
@@ -56,6 +61,8 @@
     /* Adjust the chatbox so that long content doesn't break layout */
     #chatbox {
       overflow-x: hidden;
+      max-width: 100%;
+      max-height: calc(100% - 121px);
     }
 
     /* Styles for the command suggestion box */
@@ -87,24 +94,42 @@
     .upload-btn {
       position: absolute;
       right: 0.7rem;
-      bottom: 0.4rem;
+      bottom: 0.45rem;
       background: transparent;
       border: none;
-      font-size: 1.25rem;
       cursor: pointer;
-      color: #6b7280;
-      border: 1px solid #6b7280;
-      padding: 0 8px 2px;
-      border-radius: 50%;
+      height: 2rem;
+      width: 2rem;
     }
-    
+
     #userInput::-webkit-scrollbar {
       display: none;
     }
-    
+
     #userInput {
       -ms-overflow-style: none;
       scrollbar-width: none;
+    }
+
+    #filePreview {
+      position: absolute;
+      top: -60px;
+      right: 3px;
+      width: 50px !important;
+      height: 50px;
+    }
+
+    #filePreview img {
+      position: absolute;
+      bottom: 0;
+      background: linear-gradient(45deg, #7480ff, #ff52d9);
+    }
+
+    .commandButtons {
+      position: absolute;
+      right: 0.7rem;
+      top: -3.5rem;
+      padding: 5px;
     }
   </style>
 </head>
@@ -112,18 +137,17 @@
 <body>
   <div class="flex flex-col h-screen relative">
     <!-- Navbar with New Chat, Status, and Model Selector -->
-    <div class="navbar bg-base-200 flex justify-between items-center">
+    <div class="navbar bg-base-200 flex justify-between items-center sticky top-0 z-50">
       <div class="flex items-center gap-2">
         <a class="btn btn-ghost bg-base-300 text-xl">
           <img src="asset/logo.png" alt="llamaUI Logo" class="h-10 w-10" />
           <b class="text-primary hidden sm:inline">Llama<span class="text-secondary">UI</span></b>
         </a>
-        <button id="newChatBtn" class="btn btn-sm btn-primary">New Chat</button>
         <button id="statusBtn" class="btn btn-sm btn-secondary hidden sm:inline">Status</button>
+        <button id="newChatBtn" class="btn btn-sm btn-primary">New Chat</button>
       </div>
       <div>
-        <select id="modelSelect"
-          class="select select-bordered select-sm w-full max-w-xs bg-primary text-black font-bold">
+        <select id="modelSelect" class="select select-bordered select-sm bg-primary text-black mx-2">
           <option disabled selected>Select a model</option>
         </select>
       </div>
@@ -133,16 +157,25 @@
     <div id="chatbox" class="flex-grow overflow-y-auto p-4" style="max-width: 100%;"></div>
 
     <!-- Input Area -->
-    <div class="p-4 border-t border-base-300 bg-base-200 relative">
+    <div class="p-4 border-t border-base-300 bg-base-200 relative" style="position: fixed; bottom: 0; width: 100%;">
       <form id="inputArea" class="flex gap-2" onsubmit="event.preventDefault(); sendMessage();">
         <div class="textarea-wrapper">
           <textarea id="userInput" class="textarea textarea-bordered flex-1 pr-10" rows="1"
             placeholder="Type your message..."></textarea>
-          <button id="uploadBtn" type="button" class="upload-btn" title="Upload file">+</button>
-          <input id="fileInput" type="file" class="hidden" accept=".jpeg,.jpg,.png,.webp,image/jpeg,image/png,image/webp" />
+          <div id="filePreview"></div>
+          <button id="uploadBtn" type="button" class="upload-btn" title="Upload an Image">
+            <img src="asset/image.png" class="h-7 w-7">
+          </button>
+          <input id="fileInput" type="file" class="hidden"
+            accept=".jpeg,.jpg,.png,.webp,image/jpeg,image/png,image/webp" />
         </div>
         <button id="sendBtn" type="button" class="btn btn-primary" onclick="sendMessage()">Send</button>
       </form>
+      <!-- app command buttons -->
+      <button class="btn btn-sm btn-circle border-gray-700 w-10 h-10 commandButtons" title="App Settings"><img
+          src="asset/options.png" alt="App Settings" class="h-5 w-5"></button>
+      <button class="btn btn-sm btn-circle border-gray-700 w-10 h-10 commandButtons" title="App Settings" style="top: -7rem;"><img
+          src="https://img.icons8.com/?size=96&id=xyFoc6U1Hu3c&format=png" alt="App Settings" class="h-6 w-6"></button>
       <!-- Command Suggestions (non-modal, non-blocking) -->
       <div id="commandSuggestions" class="hidden">
         <div class="flex flex-col items-start gap-1">
@@ -234,7 +267,17 @@
     const psModalContent = document.getElementById("psModalContent");
     const psModalToggle = document.getElementById("psModalToggle");
     const commandSuggestions = document.getElementById("commandSuggestions");
+    const imageFilePreview = document.getElementById('filePreview');
+    const app_config = {
+      ALLOWED_NUM_THREAD: 4,
+      USE_MAX_CPU: false,
+      DEEP_THINK: false
+    }
     let defaultMessage = document.getElementById("defaultMessage");
+    let imageInput = {
+      isApplicable: false,
+      image: null
+    }
 
     // Global chat state and streaming control.
     let currentChatHistory = [];
@@ -295,17 +338,23 @@
       }
     }
 
+    async function fetchCPU() {
+      const response = await fetch(location.href + "/internal/cpu");
+      const data = await response.json();
+      app_config.ALLOWED_NUM_THREAD = data?.cpu_count;
+    }
     // Fetch available models.
     async function fetchModels() {
       try {
         const response = await fetch(location.href + "/api/tags");
         const data = await response.json();
         modelSelect.innerHTML = data.models.sort((a, b) => a.size - b.size)
-          .map(model => `<option value="${model.name}">► ${model.name.split(":")[0]} ∙ [ ${model.name.split(":")[1]} ]</option>`)
+          .map(model => `<option value="${model.name}">${model.name.split(":")[0]} : ${model.name.split(":")[1]}</option>`)
           .join('');
         // Initialize previousModel and select the first model.
         previousModel = data.models[0]?.name || "";
         modelSelect.value = previousModel;
+        fetchCPU();
       } catch (error) {
         console.error("Error fetching models:", error);
       }
@@ -402,7 +451,7 @@
       return fetch(location.href + "/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: selectedModel, prompt: message }),
+        body: JSON.stringify({ model: selectedModel, prompt: message, images: (imageInput.isApplicable) ? [imageInput.image?.split(';base64,')[1]] : null }),
         signal: controller.signal
       });
     }
@@ -475,7 +524,8 @@
       // Append user message and immediately create the assistant message container with skeleton loader.
       appendUserMessage(message);
       const messageContentDiv = createAssistantMessageContainer();
-      currentChatHistory.push({ role: "user", content: message });
+      if (imageInput.isApplicable) currentChatHistory.push({ role: "user", content: message, images: (imageInput.isApplicable) ? [imageInput.image?.split(';base64,')[1]] : null });
+      else currentChatHistory.push({ role: "user", content: message });
 
       isStreaming = true;
       updateSendButton();
@@ -497,6 +547,7 @@
       } finally {
         isStreaming = false;
         updateSendButton();
+        resetUploadButton();
       }
     }
 
@@ -575,19 +626,38 @@
       previousModel = newModel;
     });
 
+    function resetUploadButton() {
+      document.getElementById('uploadBtn').innerHTML = '<img src="asset/image.png" class="h-7 w-7">';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('uploadBtn').style.background = 'transparent';
+      imageFilePreview.innerHTML = '';
+      imageInput.isApplicable = false;
+      imageInput.image = null;
+    }
+
     document.getElementById('uploadBtn').addEventListener('click', () => {
-      if(document.getElementById('uploadBtn').innerText != '×')
+      if (document.getElementById('uploadBtn').innerText != 'X')
         document.getElementById('fileInput').click();
-      else{
-        document.getElementById('uploadBtn').innerText = '+';
-        document.getElementById('fileInput').value = '';
-        document.getElementById('uploadBtn').style.background = 'transparent';
+      else {
+        resetUploadButton();
       }
     });
 
     document.getElementById('fileInput').addEventListener('change', (e) => {
-      document.getElementById('uploadBtn').innerText = '×';
+      document.getElementById('uploadBtn').innerText = 'X';
       document.getElementById('uploadBtn').style.background = 'rgb(16 185 129 / 17%)';
+      console.log(e.target.files)
+      if (e.target.files[0] && e.target.files[0].type.startsWith('image')) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          imageFilePreview.appendChild(img);
+          imageInput.isApplicable = true;
+          imageInput.image = e.target.result;
+        }
+        reader.readAsDataURL(e.target.files[0]);
+      }
     });
 
     // Show status modal and fetch system details.
