@@ -441,9 +441,6 @@
         modelSelect.innerHTML = data.models.sort((a, b) => a.size - b.size)
           .map(model => `<option value="${model.name}"${(app_config.REMEMBER_CURRENT_MODEL && model.name == app_config.CURRENT_MODEL)?' selected':''}>${model.name.split(":")[0]} : ${model.name.split(":")[1]}</option>`)
           .join('');
-        // Initialize previousModel and select the first model.
-        // previousModel = data.models[0]?.name || "";
-        // modelSelect.value = previousModel;
         fetchCPU();
       } catch (error) {
         console.error("Error fetching models:", error);
