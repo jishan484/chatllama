@@ -6,14 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1" />
   <script>if (window.innerWidth < (_a_ = 390)) document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=' + _a_ + ', initial-scale=1.0, user-scalable=no, minimum-scale=' + (window.innerWidth / _a_) + ', maximum-scale=' + (window.innerWidth / _a_));</script>
   <title>llamaUI : UI</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="stream_marked.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.24/dist/full.min.css" rel="stylesheet" />
   <link rel="icon" type="image/png" href="asset/logo.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Optional: Additional styles for the default message */
     .default-message {
       position: absolute;
       top: 50%;
@@ -21,17 +21,13 @@
       transform: translate(-50%, -50%);
       text-align: center;
       color: #6b7280;
-      /* Tailwind gray-500 */
     }
 
-    /* Ensure code blocks are scrollable horizontally */
     pre {
       overflow-x: auto;
       white-space: pre-wrap;
-      /* Optional: allow wrapping if desired */
       word-break: break-all;
       position: relative;
-      /* For positioning the copy button */
     }
 
     #modelSelect {
@@ -133,6 +129,14 @@
       top: -3.5rem;
       padding: 5px;
     }
+
+    codeblock {
+      background: #151111;
+      padding: 4px 6px;
+      margin: 0 4px;
+      border-radius: 5px;
+      color: cadetblue;
+    }
   </style>
 </head>
 
@@ -232,7 +236,8 @@
                 <div class="flex justify-between items-center">
                   <div>
                     <h2 class="font-semibold text-base">Remember Current Model</h2>
-                    <p class="text-xs text-base-content/60">Enable this to remember the selected model across sessions.</p>
+                    <p class="text-xs text-base-content/60">Enable this to remember the selected model across sessions.
+                    </p>
                   </div>
                   <input type="checkbox" id="rememberCurrentModel" class="toggle toggle-sm toggle-success">
                 </div>
@@ -312,36 +317,7 @@
 
   <script>
     // Set marked options to use highlight.js for code blocks.
-    marked.setOptions({
-      highlight: function (code, lang) {
-        const validLang = hljs.getLanguage(lang) ? lang : 'plaintext';
-        return hljs.highlight(code, { language: validLang }).value;
-      }
-    });
 
-    marked.use({
-      extensions: [{
-        name: 'thinkBlock',
-        level: 'block',
-        start(src) {
-          return src.indexOf('<think>');
-        },
-        tokenizer(src) {
-          const match = /^<think>([\s\S]*?)<\/think>/i.exec(src);
-          if (!match) return;
-
-          return {
-            type: 'thinkBlock',
-            raw: match[0],
-            text: match[1],
-            tokens: this.lexer.blockTokens(match[1])
-          };
-        },
-        renderer(token) {
-          return `<think>${marked.parser(token.tokens)}</think>`;
-        }
-      }]
-    });
 
     // Cache frequently accessed DOM elements.
     const modelSelect = document.getElementById("modelSelect");
@@ -439,7 +415,7 @@
         const response = await fetch(location.href + "/api/tags");
         const data = await response.json();
         modelSelect.innerHTML = data.models.sort((a, b) => a.size - b.size)
-          .map(model => `<option value="${model.name}"${(app_config.REMEMBER_CURRENT_MODEL && model.name == app_config.CURRENT_MODEL)?' selected':''}>${model.name.split(":")[0]} : ${model.name.split(":")[1]}</option>`)
+          .map(model => `<option value="${model.name}"${(app_config.REMEMBER_CURRENT_MODEL && model.name == app_config.CURRENT_MODEL) ? ' selected' : ''}>${model.name.split(":")[0]} : ${model.name.split(":")[1]}</option>`)
           .join('');
         fetchCPU();
       } catch (error) {
@@ -497,8 +473,9 @@
     async function processResponse(response, contentElement) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let partialText = "";
-
+      contentElement.innerHTML = '';
+      let partialText = '';
+      const mdParser = new StreamingMarked(contentElement, { softbreak: '<br>' });
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -517,19 +494,20 @@
         for (const obj of jsonObjects) {
           const newResponseText = obj.response || (obj.message && obj.message.content);
           if (newResponseText) {
+            mdParser.parse(newResponseText)
             partialText += newResponseText;
-            // Update container with parsed Markdown.
-            contentElement.innerHTML = marked.parse(partialText);
-            // Apply syntax highlighting to all code blocks.
-            contentElement.querySelectorAll("pre code").forEach((block) => {
-              hljs.highlightElement(block);
-            });
-            // Add copy buttons to code blocks.
-            addCopyButtons();
+
             chatbox.scrollTop = chatbox.scrollHeight;
           }
         }
       }
+      // contentElement.querySelectorAll("pre code").forEach((block) => {
+
+      //       });
+      // Add copy buttons to code blocks.
+      addCopyButtons();
+      mdParser.flush()
+      console.log(partialText)
       return partialText;
     }
 
@@ -573,7 +551,9 @@
               </div>`;
       const messageContainer = document.createElement("div");
       messageContainer.className = "bg-base-200 text-base-content rounded-lg p-3 flex-1 ml-2";
-      messageContainer.textContent = message;
+      const marked = new StreamingMarked(messageContainer);
+      marked.parse(message);
+      marked.flush();
       userMessageEl.innerHTML = avatar;
       userMessageEl.appendChild(messageContainer);
       chatbox.appendChild(userMessageEl);
@@ -716,7 +696,7 @@
       if (hasAssistantReply && previousModel && previousModel !== newModel) {
         await unloadModel(previousModel);
       }
-      if(app_config.REMEMBER_CURRENT_MODEL) {
+      if (app_config.REMEMBER_CURRENT_MODEL) {
         app_config.CURRENT_MODEL = newModel;
         localStorage.setItem("app_config", JSON.stringify(app_config));
       }
@@ -749,7 +729,6 @@
     document.getElementById('fileInput').addEventListener('change', (e) => {
       document.getElementById('uploadBtn').innerText = 'X';
       document.getElementById('uploadBtn').style.background = 'rgb(16 185 129 / 17%)';
-      console.log(e.target.files)
       if (e.target.files[0] && e.target.files[0].type.startsWith('image')) {
         const reader = new FileReader();
         reader.onload = function (e) {
