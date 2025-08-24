@@ -505,7 +505,7 @@
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       contentElement.innerHTML = '';
-      let partialText = '';
+      let partialText = "";
       const mdParser = new StreamingMarked(contentElement, { softbreak: '<br>' });
       while (true) {
         const { done, value } = await reader.read();
@@ -525,21 +525,16 @@
         for (const obj of jsonObjects) {
           const newResponseText = obj.response || (obj.message && obj.message.content);
           if (newResponseText) {
-            mdParser.parse(newResponseText)
             partialText += newResponseText;
-
+            mdParser.parse(newResponseText)
             chatbox.scrollTop = chatbox.scrollHeight;
           }
         }
       }
-      // contentElement.querySelectorAll("pre code").forEach((block) => {
-
-      //       });
-      // Add copy buttons to code blocks.
       addCopyButtons();
       mdParser.flush()
       console.debug(partialText)
-      return partialText;
+      return contentElement.innerText;
     }
 
     // Call the /api/generate endpoint for the first message.
@@ -839,6 +834,36 @@
         settingsModalToggle.checked = false;
       });
     }
+
+    function printElement(elem) {
+      if (!elem) return;
+      const printWindow = window.open("", "", "width=800,height=600");
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Preview</title>
+            ${document.getElementsByTagName("head")[0].innerHTML}
+            <style>
+              body { padding: 1rem; font-family: sans-serif; }
+              pre { background: #0c2721; color: #44babe; padding: 0.5rem; border-radius: 5px; }
+              code { background: #f3f3f3; padding: 0.2rem 0.4rem; border-radius: 3px; }
+              ul, ol { margin-left: 1.5rem; }
+            </style>
+          </head>
+          <style>
+            think{display: none;}  
+          </style>
+          <body>
+            ${elem.innerHTML}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+
 
     // Initialize models on page load.
     fetchModels();

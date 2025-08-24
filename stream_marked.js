@@ -132,7 +132,7 @@ class StreamingMarked {
             const indentLevel = Math.floor(spaces / 2);
 
             this._adjustListStack(indentLevel, listType);
-            this.builder.create("li", (this.listStack.length > 0 && this.listStack.at(-1) != 'ol') ? `before:content-['${this.nestedListDecorLookup[(this.listStack.filter(x => x).length < this.nestedListDecorLookup.length) ? this.listStack.filter(x => x).length - 1 : this.nestedListDecorLookup.length - 1]}'] before:ml-2 before:mr-1 before:text-teal-${8 - (this.listStack.filter(x => x).length % 4)}00` : "");
+            this.builder.create("li", (this.listStack.length > 0 && this.listStack.at(-1) != 'ol') ? `before:content-['${this.nestedListDecorLookup[(this.listStack.filter(x => x).length < this.nestedListDecorLookup.length) ? this.listStack.filter(x => x).length - 1 : this.nestedListDecorLookup.length - 1]}'] before:ml-2 before:mr-1 before:text-teal-${8 - (this.listStack.filter(x => x).length % 4)}00 break-words` : "break-words");
             this._processInline(content);
             this.builder.close();
             return;
@@ -277,8 +277,8 @@ class StreamingMarked {
         // Open new lists if deeper
         while (this.listStack.length < level) {
             this.builder.create(type, type === "ul"
-                ? "list-none pl-3 text-gray-400"
-                : "list-decimal pl-" + (level + 1) + " text-teal-400"
+                ? "list-none list-inside pl-3 text-gray-400"
+                : "list-decimal list-inside pl-" + (level + 1) + " text-teal-400"
             );
             this.listStack.push(type);
         }
@@ -288,16 +288,16 @@ class StreamingMarked {
             this.builder.close();
             this.listStack.pop();
             this.builder.create(type, type === "ul"
-                ? "list-none pl-6 text-gray-400"
-                : "list-decimal pl-" + (level + 1) + " text-teal-400"
+                ? "list-none list-inside pl-6 text-gray-400"
+                : "list-decimal list-inside pl-" + (level + 1) + " text-teal-400"
             );
             this.listStack.push(type);
         }
 
         if (this.listStack.length == 0) {
             this.builder.create(type, type === "ul"
-                ? "list-none pl-6 text-gray-400"
-                : "list-none pl-6 text-teal-400"
+                ? "list-none list-inside pl-6 text-gray-400"
+                : "list-[square] list-inside pl-6 text-teal-400"
             );
             this.listStack.push(type);
         }
