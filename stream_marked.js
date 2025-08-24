@@ -113,13 +113,28 @@ class StreamingMarked {
         while (line.charAt(spaces) === ' ' && spaces < line.length) spaces++;
 
         // --- Empty line ---
-        if (!trimmed) {
+        if (!trimmed && !this.inCodeBlock) {
             this._closeAllLists();
             if (this.inCodeBlock) {
                 this.builder.innerText("\n");
             } else {
                 this.builder.createSingle("br");
             }
+            return;
+        }
+
+        // --- LISTS (stack-based) ---
+        const ulMatch = /^[-*+]\s+(.+)$/.exec(trimmed);
+        const olMatch = /^(\d+)\.\s+(.+)$/.exec(trimmed);
+        if (ulMatch || olMatch) {
+            const listType = ulMatch ? "ul" : "ol";
+            const content = ulMatch ? ulMatch[1] : olMatch[2];
+            const indentLevel = Math.floor(spaces / 2);
+
+            this._adjustListStack(indentLevel, listType);
+            this.builder.create("li", (this.listStack.length > 0 && this.listStack.at(-1) != 'ol') ? `before:content-['${this.nestedListDecorLookup[(this.listStack.filter(x => x).length < this.nestedListDecorLookup.length) ? this.listStack.filter(x => x).length - 1 : this.nestedListDecorLookup.length - 1]}'] before:ml-2 before:mr-1 before:text-teal-${8 - (this.listStack.filter(x => x).length % 4)}00` : "");
+            this._processInline(content);
+            this.builder.close();
             return;
         }
 
@@ -182,6 +197,7 @@ class StreamingMarked {
                 this.codeBlockLang = trimmed.slice(3).trim() || "sh";
                 this.builder.create("pre");
                 this.builder.create("code");
+                
                 this.builder.stack.at(-1).className = `hljs language-${this.codeBlockLang}`;
             }
             return;
@@ -199,22 +215,6 @@ class StreamingMarked {
             this._closeAllLists();
             this.builder.create(`h${level}`, `text-pink-${100 + (((level <= 4) ? level : 4) * 100)}`);
             this._processInline(headerMatch[2]);
-            this.builder.close();
-            return;
-        }
-
-        // --- LISTS (stack-based) ---
-        const ulMatch = /^[-*+]\s+(.+)$/.exec(trimmed);
-        const olMatch = /^(\d+)\.\s+(.+)$/.exec(trimmed);
-
-        if (ulMatch || olMatch) {
-            const listType = ulMatch ? "ul" : "ol";
-            const content = ulMatch ? ulMatch[1] : olMatch[2];
-            const indentLevel = Math.floor(spaces / 2);
-
-            this._adjustListStack(indentLevel, listType);
-            this.builder.create("li", (this.listStack.length > 0 && this.listStack.at(-1) != 'ol') ? `before:content-['${this.nestedListDecorLookup[(this.listStack.filter(x => x).length < this.nestedListDecorLookup.length) ? this.listStack.filter(x => x).length - 1 : this.nestedListDecorLookup.length - 1]}'] before:ml-2 before:mr-1 before:text-teal-${8 - (this.listStack.filter(x => x).length % 4)}00` : "");
-            this._processInline(content);
             this.builder.close();
             return;
         }
@@ -290,6 +290,14 @@ class StreamingMarked {
             this.builder.create(type, type === "ul"
                 ? "list-none pl-6 text-gray-400"
                 : "list-decimal pl-" + (level + 1) + " text-teal-400"
+            );
+            this.listStack.push(type);
+        }
+
+        if (this.listStack.length == 0) {
+            this.builder.create(type, type === "ul"
+                ? "list-none pl-6 text-gray-400"
+                : "list-none pl-6 text-teal-400"
             );
             this.listStack.push(type);
         }
@@ -413,6 +421,8 @@ class StreamingMarked {
     }
 
     _reset() {
-        while (this.builder.stack.length > 1) this.builder.close();
+        while (this.builder.stack.length > 1 && this.listStack.length == 0) {
+            this.builder.close();
+        }
     }
 }
