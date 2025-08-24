@@ -185,6 +185,11 @@
       margin-top: 8px;
       margin-bottom: 8px;
     }
+
+    think:has(> br:only-child),
+    think:has(> br:only-child)+br {
+      display: none;
+    }
   </style>
 </head>
 
