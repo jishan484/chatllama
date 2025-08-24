@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1" />
   <script>if (window.innerWidth < (_a_ = 390)) document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=' + _a_ + ', initial-scale=1.0, user-scalable=no, minimum-scale=' + (window.innerWidth / _a_) + ', maximum-scale=' + (window.innerWidth / _a_));</script>
   <title>llamaUI : UI</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="stream_marked.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
@@ -130,12 +129,61 @@
       padding: 5px;
     }
 
+
+    h1 {
+      font-size: 1.3rem !important;
+    }
+
+    h2 {
+      font-size: 1.15rem !important;
+    }
+
+    h3 {
+      font-size: 1.05rem !important;
+    }
+
+    h4 {
+      font-size: 0.9rem !important;
+    }
+
+    h5 {
+      font-size: 0.85rem !important;
+    }
+
+    h6 {
+      font-size: 0.8rem !important;
+    }
+
+    ol {
+      counter-reset: item;
+      list-style-type: none;
+    }
+
+    ol li {
+      display: block;
+    }
+
+    ol li:before {
+      content: counters(item, ".") ". ";
+      counter-increment: item;
+    }
+
     codeblock {
-      background: #151111;
-      padding: 4px 6px;
+      background: #0c2721;
+      padding: 0px 6px;
       margin: 0 4px;
       border-radius: 5px;
-      color: cadetblue;
+      color: #44babe;
+    }
+
+    p+pre,
+    div+pre,
+    li+pre,
+    ol+pre,
+    ul+pre,
+    blockquote+pre {
+      margin-top: 8px;
+      margin-bottom: 8px;
     }
   </style>
 </head>
@@ -444,7 +492,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ model: modelName, messages: [], keep_alive: 0 })
         });
-        console.log("Unloaded model:", modelName);
+        console.info("Unloaded model:", modelName);
       } catch (error) {
         console.error("Error unloading model:", error);
       }
@@ -507,7 +555,7 @@
       // Add copy buttons to code blocks.
       addCopyButtons();
       mdParser.flush()
-      console.log(partialText)
+      console.debug(partialText)
       return partialText;
     }
 
