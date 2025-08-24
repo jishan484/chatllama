@@ -34,7 +34,6 @@ class DOMBuilder {
     }
 
     tempText(str) {
-        // TEMP BUFFER: stores partial streaming text
         if (this.currentElem.querySelector('temp')) {
             this.currentElem.querySelector('temp').textContent += str;
         } else {
@@ -44,7 +43,6 @@ class DOMBuilder {
     }
 
     reset() {
-        // clear any temp buffer
         this.currentElem.querySelectorAll('temp').forEach(temp => temp.remove());
     }
 }
@@ -53,12 +51,28 @@ class StreamingMarked {
     constructor(rootElement) {
         this.builder = new DOMBuilder(rootElement);
         this.lineBuffer = "";
-        this.currentList = null;
         this.inCodeBlock = false;
         this.codeBlockLang = null;
         this.currentTable = null;
-        this.previousSpace = 0;
-        this.indentationStack = [];
+        this.listStack = []; // stack for nested <ul>/<ol>
+        this.nestedListDecorLookup = [
+            '•',   // solid dot, clean
+            '◦',   // hollow dot
+            '▪',   // small square
+            '‣',   // triangular bullet
+            '⁃',   // short dash
+            '›',   // single angle
+            '»'    // double angle
+        ];
+        this.customTagsClassLookup = new Map([
+            ["think", "italic text-gray-600"],  // like <think>
+            ["sub", "text-xs align-sub text-gray-500 bg-gray-100 px-1 rounded-sm"],  // <sub>
+            ["note", "block px-4 py-2 my-2 border-l-4 border-blue-500 bg-blue-100 text-blue-800 text-sm rounded"], // <note>
+            ["warning", "block px-4 py-2 my-2 border-l-4 border-red-500 bg-red-100 text-red-800 font-semibold text-sm rounded"], // <warning>
+            ["codeblock", "bg-[#0c2721] px-1.5 mx-1 rounded-[5px] text-[#44babe]"], //codeblock
+            ["math", "font-serif bg-gray-400 text-gray-800 px-1 rounded text-sm"], //math
+        ]);
+        this.customTags = Array.from(this.customTagsClassLookup.keys());
     }
 
     parse(chunk) {
@@ -81,68 +95,73 @@ class StreamingMarked {
             this._processLine(this.lineBuffer);
             this.lineBuffer = "";
         }
-        if (this.currentList) { this.builder.close(); this.currentList = null; }
-        if (this.inCodeBlock) { if (hljs) hljs.highlightElement(this.builder.stack.at(-1)); this.builder.close(); this.builder.close(); this.inCodeBlock = false; this.codeBlockLang = null; }
-        if (this.currentTable) { this.builder.close(); this.currentTable = null; }
+        this._closeAllLists();
+        if (this.inCodeBlock) {
+            if (hljs) hljs.highlightElement(this.builder.stack.at(-1));
+            this.builder.close(); this.builder.close();
+            this.inCodeBlock = false;
+            this.codeBlockLang = null;
+        }
+        if (this.currentTable) {
+            this.builder.close(); this.currentTable = null;
+        }
     }
 
     _processLine(line) {
         const trimmed = line.trim();
         let spaces = 0;
-        while (line.charAt(spaces) == ' ' && spaces < line.length) spaces++;
+        while (line.charAt(spaces) === ' ' && spaces < line.length) spaces++;
+
+        // --- Empty line ---
         if (!trimmed) {
-            if (this.currentList) { this.builder.close(); this.currentList = null; }
-            if (this.inCodeBlock) { this.builder.innerText("\n"); }
-            else { this.builder.createSingle("br"); }
+            this._closeAllLists();
+            if (this.inCodeBlock) {
+                this.builder.innerText("\n");
+            } else {
+                this.builder.createSingle("br");
+            }
             return;
         }
 
         // --- Table ---
         if (trimmed.startsWith("|")) {
             const cells = trimmed.split("|").map(c => c.trim());
-            // --- First header row ---
             if (!this.currentTable) {
                 this.builder.create("table", "table-fixed border-collapse w-full my-2");
                 this.builder.create("thead", "bg-gray-600");
                 this.builder.create("tr");
-                cells.pop();
+                cells.shift();
                 cells.pop();
                 cells.forEach(h => {
                     this.builder.create("th", "border px-4 py-2 text-left font-bold");
                     this._processInline(h);
-                    this.builder.close(); // th
+                    this.builder.close();
                 });
-                this.builder.close(); // tr
-                this.builder.close(); // thead
+                this.builder.close();
+                this.builder.close();
                 this.builder.create("tbody");
-                this.currentTable = "header-done"; // mark state
+                this.currentTable = "header-done";
                 return;
             }
-            // --- Divider row (skip entirely) ---
             if (this.currentTable === "header-done" && cells.some(c => /^-+$/.test(c))) {
-                this.currentTable = "body"; // switch state
-                return; // do not render anything
+                this.currentTable = "body";
+                return;
             }
-            // --- Body rows ---
             if (this.currentTable) {
                 this.builder.create("tr");
-
                 cells.filter(c => c.length > 0).forEach(c => {
                     this.builder.create("td", "border px-4 py-2");
                     this._processInline(c);
-                    this.builder.close(); // td
+                    this.builder.close();
                 });
-
-                this.builder.close(); // tr
+                this.builder.close();
                 return;
             }
         } else if (this.currentTable) {
-            // End table when line does not start with "|"
             this.builder.close(); // tbody
             this.builder.close(); // table
             this.currentTable = null;
         }
-
 
         // --- Code Block ---
         if (trimmed.startsWith("```")) {
@@ -158,7 +177,6 @@ class StreamingMarked {
                     this.builder.stack.at(-1).className = `hljs language-${this.codeBlockLang}`;
                 }
             } else {
-                //close all previous
                 this._reset();
                 this.inCodeBlock = true;
                 this.codeBlockLang = trimmed.slice(3).trim() || "sh";
@@ -178,74 +196,51 @@ class StreamingMarked {
         const headerMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
         if (headerMatch) {
             const level = headerMatch[1].length;
+            this._closeAllLists();
             this.builder.create(`h${level}`, `text-pink-${100 + (((level <= 4) ? level : 4) * 100)}`);
             this._processInline(headerMatch[2]);
             this.builder.close();
             return;
         }
 
-        // --- Lists ---
-        // Handle unordered list
-        if (/^[-*+]\s+/.test(trimmed)) {
-            const content = trimmed.replace(/^[-*+]\s+/, "");
-            while (this.previousSpace > spaces) {
-                this.builder.close(); // closes <li>
-                this.previousSpace -= this.indentationStack.pop(); // adjust nesting level step
-            }
-            if (this.currentList !== "ul" || this.previousSpace < spaces) {
-                if (this.currentList && this.previousSpace >= spaces) {
-                    this.builder.close(); // close last <li> before new UL
-                }
-                this.builder.create("ul", "list-none pl-6 text-gray-400");
-                this.currentList = "ul";
-            }
-            if (spaces >= 2) {
-                this.builder.create(
-                    "li",
-                    "before:content-['⨠'] before:mr-2"
-                );
-            } else {
-                this.builder.create("li");
-            }
+        // --- LISTS (stack-based) ---
+        const ulMatch = /^[-*+]\s+(.+)$/.exec(trimmed);
+        const olMatch = /^(\d+)\.\s+(.+)$/.exec(trimmed);
+
+        if (ulMatch || olMatch) {
+            const listType = ulMatch ? "ul" : "ol";
+            const content = ulMatch ? ulMatch[1] : olMatch[2];
+            const indentLevel = Math.floor(spaces / 2);
+
+            this._adjustListStack(indentLevel, listType);
+            this.builder.create("li", (this.listStack.length > 0 && this.listStack.at(-1) != 'ol') ? `before:content-['${this.nestedListDecorLookup[(this.listStack.filter(x => x).length < this.nestedListDecorLookup.length) ? this.listStack.filter(x => x).length - 1 : this.nestedListDecorLookup.length - 1]}'] before:ml-2 before:mr-1 before:text-teal-${8 - (this.listStack.filter(x => x).length % 4)}00` : "");
             this._processInline(content);
-            this.builder.close(); // close li
-            if (this.previousSpace < spaces) this.indentationStack.push(spaces - this.previousSpace)
-            this.previousSpace = spaces;
+            this.builder.close();
             return;
         }
 
-        // Handle ordered list
-        const olMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
-        if (olMatch) {
-            const content = olMatch[2];
-            // Close previous lists if indentation decreased
-            while (this.previousSpace > spaces) {
-                this.builder.close(); // close <li>
-                this.previousSpace -= this.indentationStack.pop();
-            }
-            // If new OL needed
-            if (this.currentList !== "ol" || this.previousSpace < spaces) {
-                if (this.currentList && this.previousSpace === spaces) {
-                    this.builder.close(); // close last <li> before new OL
-                }
-                this.builder.create("ol", "list-decimal pl-6 spsace-y-2 text-teal-400");
-                this.currentList = "ol";
-            }
-            this.builder.create("li");
-            this._processInline(content);
-            this.builder.close(); // close li
-            if (this.previousSpace < spaces) this.indentationStack.push(spaces - this.previousSpace)
-            this.previousSpace = spaces;
+        // --- Horizontal Rule ---
+        // Matches any line with at least 3 of -, *, _ with optional spaces
+        if (/^(?: {0,3}[-*_]\s*){3,}$/.test(trimmed)) {
+            this._closeAllLists();
+            this.builder.createSingle("hr");
             return;
         }
 
+        for (let tag of this.customTags) {
+            if (trimmed.startsWith(`<${tag}>`)) {
+                this.builder.create(tag, this.customTagsClassLookup.get(tag));  // create element
+                this.builder.innerText(trimmed.replace(new RegExp(`<\\/?${tag}>`, "ig"), ""));
+                return;
+            }
 
-        if (/^---+$/.test(trimmed)) { this.builder.createSingle("hr"); return; }
+            if (trimmed.startsWith(`</${tag}>`)) {
+                this.builder.innerText(trimmed.replace(new RegExp(`<\\/?${tag}>`, "ig"), ""));
+                this.builder.close();  // close element
+                return;
+            }
+        }
 
-
-        // --- <think> ---
-        if (trimmed.startsWith("<think>")) { this.builder.create("think"); this.builder.innerText(trimmed.replace(/<.?think>/ig, "")); return; }
-        if (trimmed.startsWith("</think>")) { this.builder.innerText(trimmed.replace(/<.?think>/ig, "")); this.builder.close(); return; }
 
         // --- Blockquote ---
         if (trimmed.startsWith(">")) {
@@ -265,27 +260,57 @@ class StreamingMarked {
             return;
         }
 
-
-        // Close list if open
-        if (this.currentList) { this.builder.close(); this.currentList = null; }
-
         // --- Paragraph ---
+        this._closeAllLists();
         this.builder.create("p");
         this._processInline(trimmed);
         this.builder.close();
-        if (this.previousSpace < spaces) this.indentationStack.push(spaces - this.previousSpace)
-        this.previousSpace = spaces;
+    }
+
+    _adjustListStack(level, type) {
+        // Close deeper lists if we went back
+        while (this.listStack.length > level) {
+            this.builder.close();
+            this.listStack.pop();
+        }
+
+        // Open new lists if deeper
+        while (this.listStack.length < level) {
+            this.builder.create(type, type === "ul"
+                ? "list-none pl-3 text-gray-400"
+                : "list-decimal pl-" + (level + 1) + " text-teal-400"
+            );
+            this.listStack.push(type);
+        }
+
+        // If same level but type changed, replace
+        if (this.listStack.length && this.listStack[this.listStack.length - 1] !== type) {
+            this.builder.close();
+            this.listStack.pop();
+            this.builder.create(type, type === "ul"
+                ? "list-none pl-6 text-gray-400"
+                : "list-decimal pl-" + (level + 1) + " text-teal-400"
+            );
+            this.listStack.push(type);
+        }
+    }
+
+    _closeAllLists() {
+        while (this.listStack.length > 0) {
+            this.builder.close();
+            this.listStack.pop();
+        }
     }
 
     _processInline(text) {
         let i = 0;
         while (i < text.length) {
-            // Bold (**text**)
             if (text.startsWith("**", i)) {
                 let end = text.indexOf("**", i + 2);
                 if (end !== -1) {
                     this.builder.create("strong");
-                    if (text.indexOf("***", i + 2) !== -1) {
+                    let idnx = text.indexOf("***", i + 2);
+                    if (idnx !== -1 && idnx <= end) {
                         this._processInline(text.slice(i + 2, end + 1));
                         end++;
                     } else {
@@ -296,7 +321,6 @@ class StreamingMarked {
                     continue;
                 }
             }
-            // Italic (*text*)
             if (text.startsWith("*", i)) {
                 let end = text.indexOf("*", i + 1);
                 if (end !== -1) {
@@ -307,7 +331,6 @@ class StreamingMarked {
                     continue;
                 }
             }
-            // Emphasis (_text_)
             if (text.startsWith("_", i)) {
                 let end = text.indexOf("_", i + 1);
                 if (end !== -1) {
@@ -318,18 +341,16 @@ class StreamingMarked {
                     continue;
                 }
             }
-            // Inline code (`text`)
             if (text.startsWith("`", i) && !this.inCodeBlock) {
                 let end = text.indexOf("`", i + 1);
                 if (end !== -1) {
-                    this.builder.create("codeblock");
+                    this.builder.create("codeblock", this.customTagsClassLookup.get("codeblock"));
                     this.builder.innerText(text.slice(i + 1, end));
                     this.builder.close();
                     i = end + 1;
                     continue;
                 }
             }
-            // Strikethrough (~~text~~)
             if (text.startsWith("~~", i)) {
                 let end = text.indexOf("~~", i + 2);
                 if (end !== -1) {
@@ -340,7 +361,6 @@ class StreamingMarked {
                     continue;
                 }
             }
-            // Image ![alt](src)
             if (text.startsWith("![", i)) {
                 let altEnd = text.indexOf("]", i + 2);
                 let srcStart = text.indexOf("(", altEnd);
@@ -359,7 +379,6 @@ class StreamingMarked {
                     continue;
                 }
             }
-            // Link [text](url)
             if (text.startsWith("[", i)) {
                 let txtEnd = text.indexOf("]", i + 1);
                 let hrefStart = text.indexOf("(", txtEnd);
@@ -378,11 +397,20 @@ class StreamingMarked {
                     continue;
                 }
             }
+            if (text[i] === "$") {
+                let end = text.indexOf("$", i + 1);
+                if (end !== -1) {
+                    this.builder.create("math", this.customTagsClassLookup.get("math"));
+                    this.builder.innerText(text.slice(i + 1, end));
+                    this.builder.close();
+                    i = end + 1;
+                    continue;
+                }
+            }
             this.builder.innerText(text[i]);
             i++;
         }
     }
-
 
     _reset() {
         while (this.builder.stack.length > 1) this.builder.close();

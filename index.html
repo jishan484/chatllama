@@ -76,10 +76,6 @@
       opacity: 0.8;
     }
 
-    think {
-      color: gray;
-    }
-
     .textarea-wrapper {
       position: relative;
       display: flex;
@@ -154,34 +150,16 @@
       font-size: 0.8rem !important;
     }
 
-    ol {
-      counter-reset: item;
-      list-style-type: none;
-    }
-
-    ol li {
-      display: block;
-    }
-
-    ol li:before {
-      content: counters(item, ".") ". ";
-      counter-increment: item;
-    }
-
-    codeblock {
-      background: #0c2721;
-      padding: 0px 6px;
-      margin: 0 4px;
-      border-radius: 5px;
-      color: #44babe;
-    }
-
     p+pre,
     div+pre,
     li+pre,
     ol+pre,
     ul+pre,
-    blockquote+pre {
+    blockquote+pre,
+    h1+pre,
+    h2+pre,
+    h3+pre,
+    h4+pre {
       margin-top: 8px;
       margin-bottom: 8px;
     }
