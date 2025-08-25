@@ -55,6 +55,8 @@ class StreamingMarked {
         this.codeBlockLang = null;
         this.currentTable = null;
         this.listStack = []; // stack for nested <ul>/<ol>
+        this.listWillBeClosed = false;
+        this.prevSpace = [];
         this.nestedListDecorLookup = [
             '•',   // solid dot, clean
             '◦',   // hollow dot
@@ -70,6 +72,7 @@ class StreamingMarked {
             ["note", "block px-4 py-2 my-2 border-l-4 border-blue-500 bg-blue-100 text-blue-800 text-sm rounded"], // <note>
             ["warning", "block px-4 py-2 my-2 border-l-4 border-red-500 bg-red-100 text-red-800 font-semibold text-sm rounded"], // <warning>
             ["codeblock", "bg-[#0c2721] px-1.5 mx-1 rounded-[5px] text-[#44babe]"], //codeblock
+            ["code", "bg-[#0c2721] px-1.5 mx-1 rounded-[5px] text-[#44babe]"], //code
             ["math", "font-serif bg-gray-400 text-gray-800 px-1 rounded text-sm"], //math
         ]);
         this.customTags = Array.from(this.customTagsClassLookup.keys());
@@ -109,12 +112,19 @@ class StreamingMarked {
 
     _processLine(line) {
         const trimmed = line.trim();
+        
+        // spaces and changed level
         let spaces = 0;
         while (line.charAt(spaces) === ' ' && spaces < line.length) spaces++;
+        if((spaces - this.prevSpace.at(-1)) > 1 || this.prevSpace.length === 0) 
+            this.prevSpace.push(spaces)
+        while(spaces < this.prevSpace.at(-1)){
+            this.prevSpace.pop();
+        }
 
         // --- Empty line ---
         if (!trimmed && !this.inCodeBlock) {
-            this._closeAllLists();
+            this.listWillBeClosed = true;
             if (this.inCodeBlock) {
                 this.builder.innerText("\n");
             } else {
@@ -129,13 +139,18 @@ class StreamingMarked {
         if (ulMatch || olMatch) {
             const listType = ulMatch ? "ul" : "ol";
             const content = ulMatch ? ulMatch[1] : olMatch[2];
-            const indentLevel = Math.floor(spaces / 2);
-
+            const indentLevel = this.prevSpace.length;
             this._adjustListStack(indentLevel, listType);
             this.builder.create("li", (this.listStack.length > 0 && this.listStack.at(-1) != 'ol') ? `before:content-['${this.nestedListDecorLookup[(this.listStack.filter(x => x).length < this.nestedListDecorLookup.length) ? this.listStack.filter(x => x).length - 1 : this.nestedListDecorLookup.length - 1]}'] before:ml-2 before:mr-1 before:text-teal-${8 - (this.listStack.filter(x => x).length % 4)}00 break-words` : "break-words");
             this._processInline(content);
             this.builder.close();
+            this.listWillBeClosed = false;
             return;
+        } else {
+            if(this.listWillBeClosed) {
+                this._closeAllLists();
+                this.listWillBeClosed = false;
+            }
         }
 
         // --- Table ---
@@ -158,7 +173,7 @@ class StreamingMarked {
                 this.currentTable = "header-done";
                 return;
             }
-            if (this.currentTable === "header-done" && cells.some(c => /^-+$/.test(c))) {
+            if (this.currentTable === "header-done" && cells.some(c => /^.-+.$/.test(c))) {
                 this.currentTable = "body";
                 return;
             }
@@ -197,7 +212,6 @@ class StreamingMarked {
                 this.codeBlockLang = trimmed.slice(3).trim() || "sh";
                 this.builder.create("pre");
                 this.builder.create("code");
-                
                 this.builder.stack.at(-1).className = `hljs language-${this.codeBlockLang}`;
             }
             return;
@@ -273,7 +287,6 @@ class StreamingMarked {
             this.builder.close();
             this.listStack.pop();
         }
-
         // Open new lists if deeper
         while (this.listStack.length < level) {
             this.builder.create(type, type === "ul"
