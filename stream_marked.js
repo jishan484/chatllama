@@ -111,7 +111,7 @@ class StreamingMarked {
     }
 
     _processLine(line) {
-        const trimmed = line.trim();
+        const trimmed = line.trimStart();
         
         // spaces and changed level
         let spaces = 0;
@@ -207,7 +207,7 @@ class StreamingMarked {
                     this.builder.stack.at(-1).className = `hljs language-${this.codeBlockLang}`;
                 }
             } else {
-                this._reset();
+                this._closeAllLists();
                 this.inCodeBlock = true;
                 this.codeBlockLang = trimmed.slice(3).trim() || "sh";
                 this.builder.create("pre");
@@ -430,12 +430,6 @@ class StreamingMarked {
             }
             this.builder.innerText(text[i]);
             i++;
-        }
-    }
-
-    _reset() {
-        while (this.builder.stack.length > 1 && this.listStack.length == 0) {
-            this.builder.close();
         }
     }
 }
