@@ -100,7 +100,7 @@ class StreamingMarked {
         }
         this._closeAllLists();
         if (this.inCodeBlock) {
-            if (hljs) hljs.highlightElement(this.builder.stack.at(-1));
+            if (typeof window.hljs !== "undefined") hljs.highlightElement(this.builder.stack.at(-1));
             this.builder.close(); this.builder.close();
             this.inCodeBlock = false;
             this.codeBlockLang = null;
@@ -196,7 +196,7 @@ class StreamingMarked {
         // --- Code Block ---
         if (trimmed.startsWith("```")) {
             if (this.inCodeBlock) {
-                if (hljs) hljs.highlightElement(this.builder.stack.at(-1));
+                if (typeof window.hljs !== "undefined") hljs.highlightElement(this.builder.stack.at(-1));
                 this.builder.close(); this.builder.close();
                 this.inCodeBlock = false; this.codeBlockLang = null;
                 if (trimmed.slice(3).trim().length > 1) {

@@ -163,7 +163,8 @@
     h1+pre,
     h2+pre,
     h3+pre,
-    h4+pre,br+pre {
+    h4+pre,
+    br+pre {
       margin-top: 8px;
       margin-bottom: 8px;
     }
@@ -181,7 +182,7 @@
     <div class="navbar bg-base-200 flex justify-between items-center sticky top-0 z-50">
       <div class="flex items-center gap-2">
         <a class="btn btn-ghost bg-base-300 text-xl">
-          <img src="asset/logo.png" alt="llamaUI Logo" class="h-10 w-10" />
+          <img src="asset/logo.png" alt="llamaUI Logo" class="h-10 w-10 logoImg" />
           <b class="text-primary hidden sm:inline">llama<span class="text-secondary">U!</span></b>
         </a>
         <button id="statusBtn" class="btn btn-sm btn-secondary hidden sm:inline">Status</button>
@@ -251,7 +252,7 @@
     <input type="checkbox" id="settingsModalToggle" class="modal-toggle" />
     <!-- Settings Modal -->
     <div class="modal" id="settingsModal">
-      <div class="modal-box w-96 max-w-full">
+      <div class="modal-box pb-0 w-96 max-w-full">
         <h3 class="font-bold text-lg">Settings</h3>
         <div id="settingsModalContent" class="mt-4">
           <div class="flex flex-col h-full">
@@ -290,13 +291,11 @@
                 </div>
               </div>
               <!-- UI Theme & Layout (Coming Soon) -->
-              <div class="card bg-base-200 p-3 shadow opacity-50 pointer-events-none">
-                <div class="flex justify-between items-center">
-                  <div>
-                    <h2 class="font-semibold text-base">UI Theme & Layout</h2>
-                    <p class="text-xs text-base-content/60">Customization Coming Soon</p>
-                  </div>
-                  <button class="btn btn-xs btn-outline">TBD</button>
+              <div class="card bg-base-200 p-3 shadow">
+                <div>
+                  <h2 class="font-semibold text-base">UI Theme</h2>
+                  <select id="themeSelector" class="select select-sm mt-2 select-bordered w-full"
+                    onchange="applyTheme()"></select>
                 </div>
               </div>
               <!-- Shortcut Keys (Coming Soon) -->
@@ -313,7 +312,7 @@
               <div class="card bg-base-200 p-3 shadow">
                 <div>
                   <h2 class="font-semibold text-base mb-1">Vision Model Image Size</h2>
-                  <select id="visionImageSize" class="select select-sm select-bordered w-full">
+                  <select id="visionImageSize" class="select select-sm mt-1 select-bordered w-full">
                     <option>Original Size</option>
                     <option>1024x1024</option>
                     <option>512x512</option>
@@ -323,7 +322,7 @@
             </div>
           </div>
         </div>
-        <div class="pt-3 border-t border-base-300 flex justify-between items-center bg-base-100 sticky bottom-0">
+        <div class="pb-4 border-t border-base-300 flex justify-between items-center bg-base-100 sticky bottom-0">
           <div class="modal-action w-100 w-full flex justify-between items-center">
             <button id="saveSettingsBtn" class="btn btn-sm btn-primary">Save & Apply</button>
             <label for="settingsModalToggle" class="btn btn-sm btn-ghost">Close</label>
@@ -365,6 +364,7 @@
     const psModalToggle = document.getElementById("psModalToggle");
     const commandSuggestions = document.getElementById("commandSuggestions");
     const imageFilePreview = document.getElementById('filePreview');
+    const themeSelector = document.getElementById('themeSelector')
     const app_config = {
       ALLOWED_NUM_THREAD: 4,
       MAX_CHAT_HISTORY: 5,
@@ -372,25 +372,36 @@
       DEEP_THINK: false,
       VISION_IMAGE_SIZE: 'Original Size',
       CURRENT_MODEL: null,
-      REMEMBER_CURRENT_MODEL: false
+      REMEMBER_CURRENT_MODEL: false,
+      THEME: "default",
+      MODEL_OPTIONS: {}
     }
     let defaultMessage = document.getElementById("defaultMessage");
     let imageInput = {
       isApplicable: false,
       image: null
     }
-
+    const themes = { "default": 0, "halloween": 68, "forest": 200, "aqua": 320, "black": 0.6, "luxury": 0.7, "dracula": 30, "business": 300, "night": 315, "coffee": 40, "dim": 94, "nord": 0.4, "sunset": 75, "light": 0 };
     // Global chat state and streaming control.
     let currentChatHistory = [];
     let controller = new AbortController();
     let isStreaming = false;
     let previousModel = ""; // Store the previously selected model.
 
-    // Utility sectuion: <
-    function escapeHtml(unsafe) {
-      return unsafe.replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+    // Utility section:
+    function loadThemes() {
+      themeSelector.innerHTML = Object.keys(themes).map(theme => `<option>${theme}</option>`).join('\n');
+    }
+
+    function applyTheme(themeName) {
+      if (themeName) {
+        document.getElementsByTagName('body')[0].setAttribute("data-theme", themeName);
+        document.getElementsByClassName("logoImg").item(0).style.filter = (themes[themeName] > 1) ? "hue-rotate(" +themes[themeName] + "deg)" : "grayscale(" +themes[themeName] + ")";
+      }
+      else {
+        document.getElementsByTagName('body')[0].setAttribute("data-theme", themeSelector.value);
+        document.getElementsByClassName("logoImg").item(0).style.filter = (themes[themeSelector.value] > 1) ? "hue-rotate(" + themes[themeSelector.value] + "deg)" : "grayscale(" + themes[themeSelector.value] + ")";
+      }
     }
 
     function copyToClipboard(el) {
@@ -453,6 +464,7 @@
           .map(model => `<option value="${model.name}"${(app_config.REMEMBER_CURRENT_MODEL && model.name == app_config.CURRENT_MODEL) ? ' selected' : ''}>${model.name.split(":")[0]} : ${model.name.split(":")[1]}</option>`)
           .join('');
         fetchCPU();
+        loadThemes()
       } catch (error) {
         console.error("Error fetching models:", error);
       }
@@ -818,6 +830,7 @@
       const parsedConfig = JSON.parse(savedConfig);
       Object.assign(app_config, parsedConfig);
       console.log("✔️Loaded settings from localStorage:", app_config);
+      applyTheme(app_config.THEME);
     }
 
     // Settings Button Click Event
@@ -827,12 +840,14 @@
       document.getElementById("rememberCurrentModel").checked = app_config.REMEMBER_CURRENT_MODEL;
       document.getElementById("chatHistoryCount").value = app_config.MAX_CHAT_HISTORY;
       document.getElementById("visionImageSize").value = app_config.VISION_IMAGE_SIZE;
+      themeSelector.value = app_config.THEME;
       // Save Settings Handler
       document.getElementById("saveSettingsBtn").addEventListener("click", () => {
         app_config.USE_MAX_CPU = document.getElementById("cpuFullUsage").checked;
         app_config.REMEMBER_CURRENT_MODEL = document.getElementById("rememberCurrentModel").checked;
         app_config.MAX_CHAT_HISTORY = parseInt(document.getElementById("chatHistoryCount").value) || 1;
         app_config.VISION_IMAGE_SIZE = document.getElementById("visionImageSize").value;
+        app_config.THEME = themeSelector.value;
         // Save entire config to localStorage
         localStorage.setItem("app_config", JSON.stringify(app_config));
         settingsModalToggle.checked = false;
